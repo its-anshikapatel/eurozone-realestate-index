@@ -43,6 +43,7 @@ RETRY_HTTP_CODES = [500, 502, 503, 504, 408, 429]
 ITEM_PIPELINES = {
     "src.scraper.pipelines.ValidationPipeline": 100,
     "src.scraper.pipelines.JsonExportPipeline": 200,
+    "src.scraper.pipelines.PostgresPipeline": 300,
 }
 
 # --- Logging: let Scrapy use its own, we'll inspect output directly ---
