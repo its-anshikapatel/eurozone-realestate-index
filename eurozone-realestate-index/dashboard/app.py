@@ -29,6 +29,44 @@ st.set_page_config(
     layout="wide",
 )
 
+PALETTE = px.colors.sequential.Tealgrn
+CATEGORICAL_PALETTE = px.colors.qualitative.Prism
+
+
+# ---------------------------------------------------------------------------
+# Custom CSS
+# ---------------------------------------------------------------------------
+st.markdown(
+    """
+    <style>
+    .kpi-card {
+        background-color: #FFFFFF;
+        border: 1px solid #E5E4DD;
+        border-radius: 10px;
+        padding: 1.1rem 1.3rem;
+        text-align: left;
+    }
+    .kpi-label {
+        font-size: 0.8rem;
+        color: #6B6B63;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.2rem;
+    }
+    .kpi-value {
+        font-size: 1.9rem;
+        font-weight: 700;
+        color: #2E5B4E;
+    }
+    div[data-testid="stExpander"] {
+        border: none;
+        box-shadow: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # ---------------------------------------------------------------------------
 # Data loading (cached so we don't hit the DB on every filter interaction)
@@ -73,18 +111,31 @@ if listings_df.empty:
 st.sidebar.header("Filters")
 
 countries = sorted(listings_df["country"].unique())
-selected_countries = st.sidebar.multiselect("Country", countries, default=countries)
+with st.sidebar.expander("Country", expanded=True):
+    selected_countries = st.pills(
+        "Country", countries, selection_mode="multi", default=countries,
+        label_visibility="collapsed",
+    )
 
 property_types = sorted(listings_df["property_type"].unique())
-selected_types = st.sidebar.multiselect("Property Type", property_types, default=property_types)
+with st.sidebar.expander("Property Type", expanded=True):
+    selected_types = st.pills(
+        "Property Type", property_types, selection_mode="multi", default=property_types,
+        label_visibility="collapsed",
+    )
 
+bedroom_options = sorted(listings_df["bedrooms"].unique())
+with st.sidebar.expander("Bedrooms", expanded=False):
+    selected_bedrooms = st.pills(
+        "Bedrooms", bedroom_options, selection_mode="multi", default=bedroom_options,
+        label_visibility="collapsed",
+    )
+
+st.sidebar.markdown("")
 price_min, price_max = int(listings_df["price_eur"].min()), int(listings_df["price_eur"].max())
 price_range = st.sidebar.slider(
     "Price Range (EUR)", price_min, price_max, (price_min, price_max), step=1000
 )
-
-bedroom_options = sorted(listings_df["bedrooms"].unique())
-selected_bedrooms = st.sidebar.multiselect("Bedrooms", bedroom_options, default=bedroom_options)
 
 score_range = st.sidebar.slider("Affordability Score", 0, 100, (0, 100))
 
@@ -108,15 +159,29 @@ st.caption(
     "Automated pipeline: Scrapy → Eurostat API → PostgreSQL → Affordability Score → Dashboard"
 )
 
-kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-kpi1.metric("Total Listings", f"{len(filtered_df):,}")
-kpi2.metric("Avg. Price", f"€{filtered_df['price_eur'].mean():,.0f}" if len(filtered_df) else "—")
-kpi3.metric(
-    "Avg. Affordability Score",
-    f"{filtered_df['affordability_score'].mean():.1f}" if len(filtered_df) else "—",
-)
-kpi4.metric("Countries Covered", filtered_df["country"].nunique())
+kpi_data = [
+    ("Total Listings", f"{len(filtered_df):,}"),
+    ("Avg. Price", f"€{filtered_df['price_eur'].mean():,.0f}" if len(filtered_df) else "—"),
+    (
+        "Avg. Affordability Score",
+        f"{filtered_df['affordability_score'].mean():.1f}" if len(filtered_df) else "—",
+    ),
+    ("Countries Covered", f"{filtered_df['country'].nunique()}"),
+]
 
+cols = st.columns(4)
+for col, (label, value) in zip(cols, kpi_data):
+    col.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("---")
 
 
@@ -128,7 +193,9 @@ chart_col1, chart_col2 = st.columns(2)
 with chart_col1:
     st.subheader("Price Distribution")
     fig_hist = px.histogram(
-        filtered_df, x="price_eur", nbins=40, labels={"price_eur": "Price (EUR)"}
+        filtered_df, x="price_eur", nbins=40,
+        labels={"price_eur": "Price (EUR)"},
+        color_discrete_sequence=[PALETTE[len(PALETTE) // 2]],
     )
     fig_hist.update_layout(showlegend=False, height=350)
     st.plotly_chart(fig_hist, use_container_width=True)
@@ -140,6 +207,7 @@ with chart_col2:
         x="price_eur",
         y="affordability_score",
         color="country",
+        color_discrete_sequence=CATEGORICAL_PALETTE,
         hover_data=["title", "city", "property_type"],
         labels={"price_eur": "Price (EUR)", "affordability_score": "Affordability Score"},
     )
@@ -156,7 +224,7 @@ fig_bar = px.bar(
     y="price_per_sqm",
     labels={"country": "Country", "price_per_sqm": "Avg. Price per m² (EUR)"},
     color="price_per_sqm",
-    color_continuous_scale="Blues",
+    color_continuous_scale="Tealgrn",
 )
 fig_bar.update_layout(height=350)
 st.plotly_chart(fig_bar, use_container_width=True)
