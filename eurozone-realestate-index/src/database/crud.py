@@ -11,8 +11,7 @@ from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
-
-from src.database.models import PropertyListing
+from src.database.models import EurostatIndicator, PropertyListing
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,6 +57,36 @@ def upsert_property_listing(session: Session, item: dict) -> None:
 
     stmt = stmt.on_conflict_do_update(
         constraint="uq_listing_source",
+        set_=update_columns,
+    )
+
+    session.execute(stmt)
+    
+    from src.database.models import EurostatIndicator
+
+
+def upsert_eurostat_indicator(session: Session, record: dict) -> None:
+    """
+    Insert or update a single Eurostat indicator value for a
+    (country_code, indicator_code, year) combination.
+    """
+    stmt = pg_insert(EurostatIndicator).values(
+        country_code=record["country_code"],
+        indicator_code=record["indicator_code"],
+        indicator_name=record["indicator_name"],
+        year=record["year"],
+        value=record["value"],
+        unit=record.get("unit"),
+    )
+
+    update_columns = {
+        col.name: col
+        for col in stmt.excluded
+        if col.name not in ("id", "country_code", "indicator_code", "year", "inserted_at")
+    }
+
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_country_indicator_year",
         set_=update_columns,
     )
 
