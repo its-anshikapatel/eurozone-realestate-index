@@ -5,6 +5,10 @@ numpy==1.26.4
 
 # Scraping
 scrapy==2.12.0
+twisted==24.3.0
+pyopenssl==24.2.1
+cryptography==42.0.5
+service_identity==24.1.0
 beautifulsoup4==4.12.3
 requests==2.32.3
 
